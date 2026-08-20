@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>荐片</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #111111;
+    --dim: #666666;
+    --line: #dddddd;
+    --accent: #111111;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111111;
+      --fg: #eeeeee;
+      --dim: #999999;
+      --line: #333333;
+      --accent: #eeeeee;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 15px; line-height: 1.5;
+    max-width: 760px; margin: 0 auto; padding-bottom: 48px;
+  }
+  button, input {
+    font: inherit; color: inherit;
+    background: var(--bg); border: 1px solid var(--line);
+    padding: 8px 12px; border-radius: 0;
+  }
+  button { cursor: pointer; }
+  button:disabled { opacity: .4; cursor: default; }
+  input[type="text"], input[type="password"] { width: 100%; }
+  a { color: var(--accent); text-decoration: none; }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 16px; font-weight: 600; margin: 0; flex: 1; }
+  header button { padding: 4px 10px; }
+  main { padding: 12px; }
+  .searchbar { display: flex; gap: 8px; margin-bottom: 12px; }
+  .searchbar input { flex: 1; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .muted { color: var(--dim); font-size: 13px; }
+  .item {
+    border-bottom: 1px solid var(--line);
+    padding: 10px 2px; cursor: pointer;
+  }
+  .item .title { font-size: 15px; }
+  .item .meta { color: var(--dim); font-size: 13px; }
+  .section { margin-top: 16px; }
+  .section h2 { font-size: 14px; font-weight: 600; margin: 0 0 8px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .tabs button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .epgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 6px; }
+  .epgrid button { padding: 6px 0; text-align: center; }
+  video { width: 100%; display: block; background: #000; }
+  #player { margin-top: 12px; }
+  .status { color: var(--dim); font-size: 13px; margin: 8px 0; white-space: pre-wrap; }
+  .settings {
+    position: fixed; inset: 0; background: var(--bg); z-index: 20;
+    display: none; overflow-y: auto; padding: 12px;
+  }
+  .settings.open { display: block; }
+  .settings h2 { font-size: 16px; margin: 0 0 12px; }
+  .overlay {
+    position: fixed; inset: 0; z-index: 30; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(0,0,0,.55); padding: 20px;
+  }
+  .overlay.open { display: flex; }
+  .overlay .box {
+    background: var(--bg); border: 1px solid var(--line);
+    padding: 16px; max-width: 320px; width: 100%;
+  }
+  .overlay .box p { margin: 0 0 12px; font-size: 14px; }
+  .overlay .box .actions { display: flex; gap: 8px; }
+  .overlay .box .actions button { flex: 1; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 13px; margin-bottom: 4px; }
+  .field .hint { color: var(--dim); font-size: 12px; margin-top: 4px; }
+  .actions { display: flex; gap: 8px; }
+  .actions button { flex: 1; }
+  .sw { display: inline-flex; align-items: center; gap: 6px; }
+  .sw input { width: auto; }
+  .hide { display: none; }
+  #log {
+    margin-top: 12px; padding: 8px;
+    border: 1px solid var(--line);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px; line-height: 1.6;
+    max-height: 240px; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  #watch {
+    border: 1px solid var(--line); padding: 8px; margin-bottom: 12px;
+  }
+  #dlprog { margin-top: 12px; }
+  .pbar {
+    height: 8px; background: var(--line);
+    border: 1px solid var(--line); overflow: hidden;
+  }
+  .pbar .fill { height: 100%; width: 0; display: block; }
+  .pbar.total .fill { background: #ffffff; }
+  #dlsegs {
+    max-height: 240px; overflow-y: auto; margin-top: 4px;
+    border: 1px solid var(--line); padding: 6px;
+  }
+  #dlsegs .seg {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px; line-height: 1.6; color: var(--dim);
+    white-space: pre-wrap; word-break: break-all;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>荐片</h1>
+  <button id="btnSettings">设置</button>
+</header>
+
+<main>
+  <div class="searchbar">
+    <input id="q" type="text" placeholder="搜索影片名称" autocomplete="off">
+    <button id="btnSearch">搜索</button>
+  </div>
+  <div id="history" class="hide"></div>
+  <div id="watch" class="hide"></div>
+  <div id="list"></div>
+
+  <div id="detail" class="hide">
+    <div class="row" style="justify-content:space-between;">
+      <h2 id="dTitle"></h2>
+      <button id="btnBack">返回</button>
+    </div>
+    <div class="muted" id="dMeta"></div>
+    <div class="section" id="dTabs"></div>
+    <div class="section">
+      <div class="epgrid" id="dEps"></div>
+    </div>
+    <div class="section" id="dFtp"></div>
+    <div class="section hide" id="player">
+      <video id="video" controls playsinline></video>
+      <div class="status" id="playerStatus"></div>
+      <div class="status" id="preStatus"></div>
+      <div class="actions">
+        <button id="btnDownload">下载本集</button>
+        <button id="btnMp4">下载并转 mp4</button>
+        <button id="btnReset" disabled>重置未完成</button>
+        <button id="btnResetFix" disabled>重置并修复</button>
+      </div>
+      <div id="dlprog" class="hide">
+        <div class="pbar total"><div class="fill"></div></div>
+        <div id="dlstat" class="thread"></div>
+        <div id="dlsegs"></div>
+      </div>
+    </div>
+    <div id="log" class="hide"></div>
+  </div>
+</main>
+
+<div class="settings" id="settings">
+  <h2>设置</h2>
+  <div class="field sw">
+    <input type="checkbox" id="cfgSign" checked>
+    <label for="cfgSign">API 签名（默认开启，关闭可降低被风控概率前的校验）</label>
+  </div>
+  <div class="field sw">
+    <input type="checkbox" id="cfgSignDownload">
+    <label for="cfgSignDownload">下载时使用签名</label>
+    <div class="hint">默认关闭。关闭可避免触发 CORS 预检（实测资源服务器不允许签名头）。除非无法下载或触发风控，否则不要修改此条目。</div>
+  </div>
+  <div class="field sw">
+    <input type="checkbox" id="cfgPreload">
+    <label for="cfgPreload">预加载：选集后自动预加载到浏览器存储</label>
+    <div class="hint">开启后，点选某集即自动预加载分片（优先当前播放片与后 2 块），前 5 块完成后才允许播放；关闭则按原逻辑直接播放。</div>
+  </div>
+  <div class="field">
+    <label>下载线程数</label>
+    <input type="number" id="cfgThreads" min="1" max="50" value="20">
+    <div class="hint">并行下载切片的并发数（默认 20）。越大并发越高，但占用内存与 CDN 连接，实际受切片总数限制</div>
+  </div>
+  <div class="field">
+    <label>签名 secret</label>
+    <input type="password" id="cfgSecret" placeholder="自动从 /v2/sys/init 获取">
+    <div class="hint">留空则自动获取并保存</div>
+  </div>
+  <div class="field">
+    <label>登录 token（可选）</label>
+    <input type="password" id="cfgToken" placeholder="留空表示匿名">
+  </div>
+  <div class="field">
+    <label>API 域名</label>
+    <input type="text" id="cfgApi" value="https://h5.jianpianips1.com/api">
+  </div>
+  <div class="actions">
+    <button id="btnSave">保存</button>
+    <button id="btnClose">关闭</button>
+    <button id="btnClear">清空历史</button>
+  </div>
+  <div class="status" id="setStatus"></div>
+</div>
+
+<div class="overlay" id="choice">
+  <div class="box">
+    <p>mp4 转换失败。请选择处理方式：</p>
+    <div class="actions">
+      <button id="chWebm">浏览器录制 webm</button>
+      <button id="chTs">直接下载 .ts</button>
+    </div>
+  </div>
+</div>
+
+<script src="md5.js"></script>
+<script src="aes.js"></script>
+<script src="lib/mux.js"></script>
+<script src="lib/hls.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
